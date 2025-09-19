@@ -1,0 +1,18 @@
+project_name: "bedrock-project"
+environment: "dev"
+
+# VPC Configuration
+vpc_cidr: "10.0.0.0/16"
+max_azs: 2
+
+# Lambda Configuration
+lambda_timeout: 30
+lambda_memory_size: 256
+
+# API Gateway Configuration
+api_throttle_rate_limit: 100
+api_throttle_burst_limit: 200
+
+# Monitoring
+enable_detailed_monitoring: true
+alarm_email: "your-email@example.com"

@@ -1,28 +1,66 @@
 #!/usr/bin/env python3
-import os
+"""
+Main CDK application entry point
+This file orchestrates all your stacks
+"""
 
 import aws_cdk as cdk
+import yaml
+import os
+from stacks.vpc_stack import VpcStack
+from stacks.bedrock_stack import BedrockStack
+from stacks.api_stack import ApiStack
+from stacks.monitoring_stack import MonitoringStack
 
-from my_first_project.my_first_project_stack import MyFirstProjectStack
+# Load configuration based on environment
+environment = os.environ.get('CDK_ENV', 'dev')
+config_file = f'config/{environment}.yaml'
 
+with open(config_file, 'r') as f:
+    config = yaml.safe_load(f)
 
 app = cdk.App()
-MyFirstProjectStack(app, "MyFirstProjectStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# Get AWS account and region from environment or use defaults
+env = cdk.Environment(
+    account=os.environ.get('CDK_DEFAULT_ACCOUNT'),
+    region=os.environ.get('CDK_DEFAULT_REGION', 'us-east-1')
+)
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+# Create stacks in dependency order
+vpc_stack = VpcStack(
+    app, 
+    f"{config['project_name']}-vpc-{environment}",
+    config=config,
+    env=env
+)
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+bedrock_stack = BedrockStack(
+    app,
+    f"{config['project_name']}-bedrock-{environment}",
+    config=config,
+    env=env
+)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+api_stack = ApiStack(
+    app,
+    f"{config['project_name']}-api-{environment}",
+    vpc=vpc_stack.vpc,
+    bedrock_agent_id=bedrock_stack.agent_id,
+    bedrock_agent_alias_id=bedrock_stack.agent_alias_id,
+    lambda_role=bedrock_stack.lambda_role,
+    kms_key=bedrock_stack.kms_key,
+    config=config,
+    env=env
+)
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+monitoring_stack = MonitoringStack(
+    app,
+    f"{config['project_name']}-monitoring-{environment}",
+    api_stack=api_stack,
+    bedrock_stack=bedrock_stack,
+    config=config,
+    env=env
+)
 
 app.synth()
